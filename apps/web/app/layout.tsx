@@ -6,7 +6,6 @@ import "./globals.css"
 import { WalletProvider } from "@/lib/wallet-context"
 import { ThemeProvider } from "@/lib/theme-context"
 import { I18nProvider } from "@/lib/i18n-context"
-import { Toaster } from "@/components/ui/toaster"
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -62,7 +61,6 @@ export default function RootLayout({
             <WalletProvider>{children}</WalletProvider>
           </I18nProvider>
         </ThemeProvider>
-        <Toaster />
         <Analytics />
       </body>
     </html>
