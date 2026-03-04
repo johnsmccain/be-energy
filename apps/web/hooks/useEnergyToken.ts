@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useWallet } from "@/lib/wallet-context"
 import { CONTRACTS, STELLAR_CONFIG, NETWORK_PASSPHRASE } from "@/lib/contracts-config"
 import * as StellarSdk from "@stellar/stellar-sdk"
+
+
 
 export function useEnergyToken() {
   const { address, kit } = useWallet()
@@ -13,7 +15,7 @@ export function useEnergyToken() {
   /**
    * Get balance of $ENERGY tokens for the current user
    */
-  const getBalance = async (userAddress?: string): Promise<string> => {
+  const getBalance = useCallback(async (userAddress?: string): Promise<string> => {
     try {
       setIsLoading(true)
       setError(null)
@@ -72,7 +74,7 @@ export function useEnergyToken() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [address])
 
   /**
    * Transfer $ENERGY tokens to another address

@@ -293,6 +293,7 @@ export default function MarketplacePage() {
                     </div>
                     <Button
                       onClick={() => handleBuy(offer)}
+                      disabled={offer.seller === address}
                       className="w-full gradient-primary text-white font-semibold hover:scale-105 transition-transform"
                     >
                       {t("marketplace.buy")}
