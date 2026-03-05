@@ -31,12 +31,19 @@ create_pr() {
     return 0
   fi
 
+  # Collect co-authors from commits being promoted
+  coauthors=$(git log "$to".."$from" --format='%aN <%aE>' | sort -u | while read -r author; do
+    echo "Co-Authored-By: $author"
+  done)
+
   echo "Creating PR: $from → $to ($diff_count commits)"
   gh pr create \
     --base "$to" \
     --head "$from" \
     --title "promote: $from → $to" \
-    --body "Automated promotion of \`$from\` into \`$to\` ($diff_count commits)."
+    --body "Automated promotion of \`$from\` into \`$to\` ($diff_count commits).
+
+$coauthors"
 }
 
 merge_pr() {
