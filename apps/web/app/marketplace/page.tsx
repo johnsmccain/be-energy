@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Plus, Zap, ArrowLeft, Users, Activity, AlertCircle, Loader2 } from "lucide-react"
 import { mockOffers, generateIdenticon, mockUser } from "@/lib/mock-data"
+import { useEnergyToken } from "@/hooks/useEnergyToken"
 
 interface Offer {
   id: number
@@ -34,6 +35,7 @@ interface Offer {
 
 export default function MarketplacePage() {
   const { isConnected, address } = useWallet()
+  const { transfer } = useEnergyToken()
   const { t } = useI18n()
   const router = useRouter()
   const { getTotalGenerated, getMemberList } = useEnergyDistribution()
@@ -126,40 +128,47 @@ export default function MarketplacePage() {
     setShowBuyModal(true)
   }
 
-  const handleConfirmBuy = () => {
+  const handleConfirmBuy = async () => {
     if (selectedOffer) {
-      const updatedOffers = offers.filter((offer) => offer.id !== selectedOffer.id)
-      setOffers(updatedOffers)
-      localStorage.setItem("marketplaceOffers", JSON.stringify(updatedOffers))
+      try {
+        const txHash = await transfer(selectedOffer.seller, selectedOffer.amount)
 
-      const newStock = userStockKwh + selectedOffer.amount
-      setUserStockKwh(newStock)
-      localStorage.setItem("userStockKwh", newStock.toString())
+        const updatedOffers = offers.filter((offer) => offer.id !== selectedOffer.id)
+        setOffers(updatedOffers)
+        localStorage.setItem("marketplaceOffers", JSON.stringify(updatedOffers))
 
-      const history = JSON.parse(localStorage.getItem("transactionHistory") || "[]")
-      const newTransaction = {
-        id: Date.now(),
-        type: "compra",
-        description: `Compra de energía - ${selectedOffer.sellerShort}`,
-        amount: `+${selectedOffer.amount} kWh`,
-        xlmAmount: selectedOffer.total,
-        time: "Ahora",
-        icon: "success",
-        timestamp: new Date().toISOString(),
+        const newStock = userStockKwh + selectedOffer.amount
+        setUserStockKwh(newStock)
+        localStorage.setItem("userStockKwh", newStock.toString())
+
+        const history = JSON.parse(localStorage.getItem("transactionHistory") || "[]")
+        const newTransaction = {
+          id: Date.now(),
+          type: "compra",
+          description: `Compra de energía - ${selectedOffer.sellerShort}`,
+          amount: `+${selectedOffer.amount} kWh`,
+          xlmAmount: selectedOffer.total,
+          time: "Ahora",
+          icon: "success",
+          timestamp: new Date().toISOString(),
+        }
+        history.unshift(newTransaction)
+        localStorage.setItem("transactionHistory", JSON.stringify(history))
+
+        setSuccessData({
+          type: "compra",
+          amount: selectedOffer.amount,
+          xlmAmount: selectedOffer.total,
+          txHash
+        })
+        setShowBuyModal(false)
+        setShowSuccessModal(true)
+      } catch (err) {
+        console.log("Error en la compra: ", err)
+        setShowBuyModal(false)
       }
-      history.unshift(newTransaction)
-      localStorage.setItem("transactionHistory", JSON.stringify(history))
-
-      setSuccessData({
-        type: "compra",
-        amount: selectedOffer.amount,
-        xlmAmount: selectedOffer.total,
-      })
     }
-    setShowBuyModal(false)
-    setShowSuccessModal(true)
   }
-
   const calculateTotal = () => {
     if (newOfferAmount && newOfferPrice) {
       return (Number.parseFloat(newOfferAmount) * Number.parseFloat(newOfferPrice)).toFixed(2)
@@ -269,6 +278,7 @@ export default function MarketplacePage() {
                     </div>
                     <Button
                       onClick={() => handleBuy(offer)}
+                      disabled={offer.seller === address}
                       className="w-full gradient-primary text-white font-semibold hover:scale-105 transition-transform"
                     >
                       {t("marketplace.buy")}
@@ -381,6 +391,7 @@ export default function MarketplacePage() {
         amount={successData.amount}
         xlmAmount={successData.xlmAmount}
         txHash={successData.txHash}
+        redirectTo="/marketplace"
       />
     </div>
   )

@@ -41,13 +41,6 @@ export default function DashboardPage() {
     }
   }, [isConnected, address, loadBalance])
 
-  // DEBUG: verificar env vars
-  console.log('CONTRACT ADDRESSES:', {
-    token: process.env.NEXT_PUBLIC_ENERGY_TOKEN_CONTRACT,
-    distribution: process.env.NEXT_PUBLIC_ENERGY_DISTRIBUTION_CONTRACT
-  })
-
-
   const [copied, setCopied] = useState(false)
   const shortAddress = address ? `${address.slice(0, 4)}...${address.slice(-4)}` : null
   const [userStockKwh, setUserStockKwh] = useState(mockUser.stockKwh)
