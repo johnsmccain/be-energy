@@ -115,7 +115,22 @@ export default function MarketplacePage() {
 
   const handleCreateOffer = () => {
     const amount = Number.parseFloat(newOfferAmount)
+    const price = Number.parseFloat(newOfferPrice)
     const xlmAmount = Number.parseFloat(calculateTotal())
+
+    const newOffer: Offer = {
+      id: Date.now(),
+      seller: address || "unknown",
+      sellerShort: address ? `${address.slice(0, 4)}...${address.slice(-4)}` : "unknown",
+      amount,
+      pricePerKwh: price,
+      total: xlmAmount,
+    }
+
+    const updatedOffers = [...offers, newOffer]
+    setOffers(updatedOffers)
+    localStorage.setItem("marketplaceOffers", JSON.stringify(updatedOffers))
+
     setSuccessData({ type: "venta", amount, xlmAmount })
     setShowCreateModal(false)
     setShowSuccessModal(true)
