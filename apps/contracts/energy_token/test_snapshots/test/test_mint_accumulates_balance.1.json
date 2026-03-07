@@ -396,7 +396,7 @@
                                 "symbol": "name"
                               },
                               "val": {
-                                "string": "HoneyDrop"
+                                "string": "TestToken"
                               }
                             },
                             {
@@ -404,7 +404,7 @@
                                 "symbol": "symbol"
                               },
                               "val": {
-                                "string": "HDROP"
+                                "string": "TEST"
                               }
                             }
                           ]
@@ -420,6 +420,18 @@
                         },
                         "val": {
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "CooperativeId"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "string": "coop-001"
                         }
                       },
                       {
