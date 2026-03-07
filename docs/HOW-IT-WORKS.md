@@ -1,134 +1,127 @@
 # BeEnergy — Cómo funciona
 
-BeEnergy no es un mercado abierto de energía. Es infraestructura operativa para que cooperativas validen, rastreen y concilien créditos energéticos solares.
+BeEnergy es infraestructura de certificación energética on-chain. Tokeniza la producción de energía renovable como certificados ambientales verificables en Stellar.
 
 ## El problema
 
-Miles de familias en Argentina instalaron paneles solares. Cuando generan más de lo que consumen, el excedente se inyecta a la red y la cooperativa les reconoce un crédito en la factura.
-
-El problema no es que falte generación ni que la normativa lo impida — el Art. 12f de la Ley 27.424 habilita la transferencia de créditos entre socios del mismo distribuidor desde 2017. Lo que falta es la herramienta operativa para hacerlo funcionar en la práctica.
+La generación distribuida crece en Argentina. Cooperativas y comunidades instalan paneles solares y generan energía renovable. Pero esa generación no tiene un registro verificable, transparente ni accesible para terceros.
 
 **Hoy:**
 
-- El usuario no tiene visibilidad directa de cuánto genera.
-- El dato existe en el medidor, pero rara vez se presenta de forma accesible.
-- La conciliación suele depender de procesos manuales o sistemas poco integrados.
-- Sin registro trazable, sin visibilidad en tiempo real.
-- El crédito queda inmovilizado dentro del sistema de facturación.
-- No puede reasignarse fácilmente entre usuarios aunque la normativa contemple esa posibilidad.
+- La producción renovable se registra en sistemas cerrados o planillas manuales.
+- No hay forma estandarizada de certificar cuánta energía renovable se generó.
+- Empresas con metas ESG no pueden acceder fácilmente a certificados de generación distribuida en Latinoamérica.
+- El atributo ambiental de la generación renovable (el "verde" de la energía) se pierde o no se monetiza.
 
 ## Qué hace BeEnergy
 
-BeEnergy digitaliza la gestión de créditos energéticos dentro de una cooperativa.
+BeEnergy mide la producción renovable de una cooperativa, emite proto-certificados on-chain (1 token = 1 kWh generado) y facilita su venta a compradores externos.
 
-En otras palabras, BeEnergy funciona como el sistema operativo que registra y concilia la energía distribuida dentro de la cooperativa.
-
-En términos prácticos, BeEnergy registra la generación distribuida, emite créditos energéticos validados por la cooperativa y concilia esos créditos con el sistema de facturación.
-
-La cooperativa administra el sistema, valida los datos y define las reglas de operación. Los usuarios participan dentro de ese marco.
+El token representa el **atributo ambiental** de la generación — no la electricidad física. Una empresa puede usar energía de red convencional pero comprar certificados para respaldar su operación como "renovable".
 
 | Sin BeEnergy | Con BeEnergy |
 |---|---|
-| Conciliación manual por planilla | Registro automático y auditable |
-| El usuario no ve cuánto genera | Dashboard con historial de generación y créditos |
-| El crédito queda inmovilizado | Reasignación de créditos gestionada por la cooperativa (Art. 12f) |
-| Opacidad en la distribución del excedente | Trazabilidad completa por usuario y por cooperativa |
+| Generación sin registro verificable | Proto-certificados on-chain auditables |
+| Atributo ambiental no monetizado | Certificados vendibles a compradores externos |
+| Sin trazabilidad para ESG | Historial completo e inmutable en Stellar |
+| Acceso limitado al mercado de RECs | Puerta de entrada al mercado de certificados |
 
 ## Cómo funciona
 
-### 1. El dato llega
+### 1. La cooperativa genera energía
 
-La cooperativa ya releva o administra la información de medición dentro del esquema actual de generación distribuida.
+La cooperativa o comunidad solar genera energía renovable. La producción se mide con medidores.
 
-- En el piloto lo carga manualmente o por CSV — sin hardware nuevo y con una implementación inicial simple.
-- En Fase 2, se integra con la infraestructura de medición existente y el dato llega automáticamente.
+- En el piloto: la cooperativa carga datos manualmente o por CSV.
+- En Fase 2: se integra con medidores inteligentes y el dato llega automáticamente.
 
-### 2. La cooperativa valida y se emite el crédito
+### 2. Se emiten los proto-certificados
 
-Contra el dato validado, el sistema emite créditos energéticos digitales:
+Contra el dato de producción validado, el sistema emite tokens:
 
-- **1 crédito = 1 kWh** de inyección validado por la cooperativa según la medición registrada.
-- El crédito mantiene una equivalencia fija con la energía validada.
-- No está diseñado como activo especulativo ni como instrumento de mercado abierto.
+- **1 token = 1 kWh** de generación renovable certificada por la cooperativa.
+- El token es un **proto-certificado**: un claim verificable on-chain de que esa energía fue generada.
+- Cada cooperativa tiene su propio token con nombre y símbolo propios.
 
-### 3. El usuario ve, la cooperativa opera
+### 3. Compradores externos adquieren los certificados
 
-Desde su dashboard, el usuario puede visualizar su generación y su saldo de créditos energéticos.
+Empresas con metas ESG, fondos climáticos o programas de compensación compran los proto-certificados.
 
-La cooperativa administra la asignación y reasignación de créditos dentro del sistema según sus reglas operativas y el marco regulatorio vigente.
+- El comprador adquiere tokens que representan el atributo ambiental de la generación.
+- Al comprar, puede declarar que respalda su consumo con energía renovable verificada.
 
-### 4. Se aplica en factura
+### 4. Se retiran los certificados
 
-El usuario receptor aplica sus créditos al consumo facturado.
+El comprador retira el certificado (burn on-chain). Esto evita doble conteo: una vez retirado, ese kWh certificado no puede reclamarse de nuevo.
 
-La cooperativa los reconoce y los descuenta según sus reglas operativas. Todo queda registrado y es auditable.
+Los ingresos de la venta vuelven a la cooperativa y benefician a sus miembros.
 
-## Por qué esto le sirve a la cooperativa
+## Qué es un proto-certificado
 
-BeEnergy no reemplaza a la cooperativa. Le da una herramienta operativa para:
+Un proto-certificado es un **claim verificable on-chain de que 1 kWh de energía renovable fue generado**. Es la base sobre la cual se construye una certificación completa.
 
-- Digitalizar la conciliación de créditos energéticos dentro de la red de usuarios de la cooperativa.
-- Reducir procesos manuales de cálculo y aplicación en factura.
-- Tener trazabilidad completa por usuario, por período y por volumen.
-- Ofrecer visibilidad al usuario-generador sin cambiar la operativa existente.
-- Administrar la reasignación de créditos dentro de la red de la cooperativa, conforme a la Ley 27.424.
+**Qué es:**
+- Registro inmutable de generación renovable
+- Verificable por cualquier tercero en Stellar
+- Vendible como atributo ambiental
 
-Este tipo de enfoque ya tiene antecedentes institucionales en Argentina. En Córdoba, UTN, EPEC y Mundo Maipú trabajan en un sistema donde la energía inyectada genera tokens aplicables a facturas dentro de un esquema comunitario. BeEnergy lleva esa lógica al contexto cooperativo con una capa operativa y trazable.
+**Qué NO es (todavía):**
+- No es un REC formal (le falta metadata estandarizada, verificación independiente, integración con registro reconocido)
+- No es energía física para consumir
+- No es un instrumento financiero ni especulativo
+
+Para convertirse en un REC completo necesita: metadata por mint (fecha, fuente, ubicación, tecnología), verificación independiente y aceptación por un estándar reconocido (I-REC, Energy Web, TIGR).
+
+## Quiénes participan
+
+### Cooperativa (nuestro cliente)
+La cooperativa genera energía renovable y usa BeEnergy para certificar esa producción. Administra el sistema, valida datos, gestiona miembros.
+
+### Miembros de la cooperativa
+Los miembros son participantes de la cooperativa energética. Según cada cooperativa pueden ser:
+- **Prosumers**: instalan paneles, generan energía, reciben certificados por su producción.
+- **Copropietarios de activos compartidos**: la cooperativa instala un parque solar, los miembros son copropietarios y el reparto es por participación.
+- **Modelo mixto**: combinación de ambos.
+
+No se asume un modelo único — el sistema es flexible.
+
+### Compradores externos
+- Empresas con metas ESG (Google, Microsoft, corporaciones con compromisos climáticos)
+- Fondos climáticos
+- Programas de compensación de carbono
+- Mercados de certificados renovables
 
 ## Por qué blockchain
 
-El registro de créditos se implementa sobre Stellar, lo que permite asegurar trazabilidad e inmutabilidad del historial sin depender de un registro interno cerrado.
+El registro de certificados se implementa sobre Stellar:
 
-El historial de emisiones, transferencias y aplicaciones puede ser auditado sin depender de que BeEnergy opere como intermediario central.
+- **Trazabilidad**: cada mint, transferencia y retiro es verificable on-chain.
+- **Inmutabilidad**: el historial no puede alterarse.
+- **Transparencia**: cualquier tercero puede auditar sin depender de BeEnergy.
+- **Fees bajos**: ~0.00001 XLM por transacción en Stellar.
+- **Interoperabilidad**: token SEP-41, estándar de Stellar, compatible con el ecosistema.
 
-La blockchain funciona como capa de registro y auditoría. El producto visible para la cooperativa es el dashboard; Stellar queda por debajo, asegurando trazabilidad e inmutabilidad.
+La blockchain es infraestructura invisible para el usuario final. Solo está para que todo sea verificable y auditable.
 
-## Fases del producto
+## Niveles del producto
 
-**Fase 1 — Core (hoy)**
-Dashboard cooperativo + ledger de créditos. Emisión, visualización, reasignación de créditos gestionada por la cooperativa, conciliación con factura.
+### Nivel 1 — Registro interno (actual)
+Token = registro de producción renovable para cooperativas. Proto-certificado con trazabilidad on-chain.
 
-**Fase 2 — Integración automática**
-Conexión con la infraestructura de medición existente. El dato de inyección llega sin intervención manual.
+### Nivel 2 — Certificación verificable
+Se agregan: medidores inteligentes, oráculos, verificación independiente. El token gana credibilidad externa y metadata estandarizada.
 
-**Fase 3 — Inteligencia operativa**
-Predicción de generación, optimización de la reasignación de créditos, alertas de anomalías.
+### Nivel 3 — Estándar reconocido
+Integración con I-REC, Energy Web, TIGR. Acceso al mercado global de RECs. El token se acepta internacionalmente como certificado renovable.
 
 ## Modelo de negocio
 
-Suscripción SaaS para cooperativas.
-
-La cooperativa paga por eficiencia operativa: menos trabajo manual, más trazabilidad, herramienta para cumplir con la normativa de generación distribuida.
-
-Los números exactos dependen de la cantidad de usuarios, el volumen de generación y el perfil de cada cooperativa. El piloto validará estos supuestos.
+BeEnergy cobra una comisión sobre la venta de certificados a compradores externos. Los ingresos de la venta benefician a la cooperativa y sus miembros.
 
 ## Lo que BeEnergy no es
 
-- No es un mercado abierto de energía.
+- No es un mercado P2P de energía entre miembros.
 - No es un activo cripto ni un instrumento de inversión.
-- No reemplaza a la cooperativa — la potencia operativamente.
+- No reemplaza a la cooperativa — le da infraestructura para certificar y monetizar su generación.
 - No instala paneles, no maneja la red, no pone medidores.
-
-## Audiencia
-
-**Cliente principal: la cooperativa eléctrica.**
-
-- Argentina tiene 343+ cooperativas eléctricas distribuidas (CADER).
-- Gestionan créditos solares con planillas Excel o sistemas legacy.
-- Tienen el problema operativo hoy (conciliación manual, falta de trazabilidad).
-- Tienen autoridad legal para validar medición y habilitar reasignaciones.
-
-**¿Qué gana la cooperativa con BeEnergy?**
-
-- Digitalizar conciliación de créditos energéticos (menos trabajo manual).
-- Trazabilidad completa por usuario, período y volumen (auditable).
-- Ofrecer visibilidad al usuario-generador sin cambiar operativa existente.
-- Administrar reasignación de créditos según Ley 27.424 (cumplimiento normativo).
-- Dashboard operativo para gestionar todo desde un panel único.
-
-**Usuario final (indirecto):**
-
-- Usuario-generador: ve cuánto genera, cuánto tiene en créditos, cómo se aplican.
-- Usuario-consumidor: puede recibir créditos reasignados por la cooperativa.
-
-Pero el que paga y opera el sistema es la cooperativa.
+- No es un REC formal todavía — es la base para llegar ahí.

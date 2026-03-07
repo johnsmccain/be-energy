@@ -6,7 +6,7 @@
 
 ## El producto en una oración
 
-**BeEnergy le da a una cooperativa eléctrica la herramienta para tokenizar créditos de generación distribuida y gestionarlos sin planillas.**
+**BeEnergy tokeniza la producción de energía renovable como proto-certificados verificables en Stellar, vendibles a compradores externos.**
 
 ---
 
@@ -15,16 +15,17 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                     │
-│   ☀️  PANEL SOLAR genera electricidad                               │
+│   ☀️  COOPERATIVA GENERA energía renovable                          │
 │                                                                     │
-│   El excedente se inyecta a la red de la cooperativa                │
+│   Paneles solares producen electricidad limpia.                     │
+│   La producción se mide con medidores.                              │
 │                                                                     │
 └──────────────────────────┬──────────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                     │
-│   📊  MEDIDOR registra kWh inyectados                               │
+│   📊  MEDIDOR registra kWh generados                                │
 │                                                                     │
 │   Fase 1: la cooperativa carga el dato manual o por CSV             │
 │   Fase 2: el medidor inteligente lo envía automáticamente           │
@@ -39,20 +40,22 @@
 │   El admin de la cooperativa revisa el dato en el dashboard         │
 │   y confirma que es correcto.                                       │
 │                                                                     │
-│   Sin validación, no hay crédito. La cooperativa es la autoridad.   │
+│   Sin validación, no hay certificado. La cooperativa es la          │
+│   autoridad sobre sus datos de generación.                          │
 │                                                                     │
 └──────────────────────────┬──────────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                     │
-│   🪙  SE MINTEA EL CRÉDITO on-chain                                 │
+│   🪙  SE MINTEA EL PROTO-CERTIFICADO on-chain                       │
 │                                                                     │
-│   1 token = 1 kWh validado                                         │
+│   1 token = 1 kWh de generación renovable verificada                │
 │   El token es SEP-41 (estándar Stellar)                             │
 │   Cada cooperativa tiene su propio token con nombre propio          │
 │                                                                     │
-│   Contrato: energy_token.mint_energy(usuario, cantidad)             │
+│   Contrato: energy_token.mint_energy(miembro, cantidad)             │
+│   Distribución: proporcional por participación de cada miembro      │
 │   Blockchain: Stellar / Soroban                                     │
 │                                                                     │
 └──────────────────────────┬──────────────────────────────────────────┘
@@ -60,23 +63,26 @@
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                     │
-│   👤  USUARIO VE SUS CRÉDITOS en el dashboard                       │
+│   🏢  COMPRADOR EXTERNO adquiere certificados                       │
 │                                                                     │
-│   "Generaste 47.3 kWh este mes"                                    │
-│   "Tenés 127.8 créditos disponibles"                                │
-│   "Historial: marzo 47.3 · febrero 42.1 · enero 38.4"              │
+│   Empresas ESG, fondos climáticos, programas de compensación        │
+│   compran proto-certificados para respaldar su consumo como         │
+│   "energía renovable".                                              │
+│                                                                     │
+│   El comprador paga → los ingresos van a la cooperativa.            │
 │                                                                     │
 └──────────────────────────┬──────────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                     │
-│   🔥  SE APLICA A FACTURA → se quema el token                      │
+│   🔥  SE RETIRA EL CERTIFICADO → se quema el token                  │
 │                                                                     │
-│   La cooperativa descuenta créditos del consumo facturado.          │
-│   Los tokens aplicados se queman (burn). No se reusan.              │
+│   El comprador retira (retire) el certificado.                      │
+│   Los tokens retirados se queman (burn). No se reusan.              │
+│   Esto evita doble conteo del atributo ambiental.                   │
 │                                                                     │
-│   Contrato: energy_token.burn_energy(usuario, cantidad)             │
+│   Contrato: energy_token.burn_energy(comprador, cantidad)           │
 │                                                                     │
 │   Todo queda registrado en blockchain = auditable por terceros.     │
 │                                                                     │
@@ -90,18 +96,14 @@
 ```
 ┌──────────────────────┐     ┌──────────────────────┐
 │                      │     │                      │
-│   COOPERATIVA        │     │   USUARIO-GENERADOR  │
-│   (nuestro cliente)  │     │   (usuario de la     │
-│                      │     │    cooperativa)       │
-│   • Carga lecturas   │     │                      │
-│   • Valida datos     │     │   • Ve su dashboard  │
-│   • Mintea créditos  │     │   • Ve sus créditos  │
-│   • Aplica a factura │     │   • Ve su historial  │
-│   • Ve analytics     │     │                      │
-│   • Gestiona usuarios│     │   No necesita saber  │
-│                      │     │   qué es blockchain.  │
-│   Paga suscripción   │     │   Solo ve números    │
-│   SaaS a BeEnergy.   │     │   en su dashboard.   │
+│   COOPERATIVA        │     │   COMPRADOR EXTERNO  │
+│   (nuestro cliente)  │     │   (empresa ESG,      │
+│                      │     │    fondo climático)   │
+│   • Genera energía   │     │                      │
+│   • Carga lecturas   │     │   • Compra certif.   │
+│   • Valida datos     │     │   • Retira (burn)    │
+│   • Ve analytics     │     │   • Declara consumo  │
+│   • Gestiona miembros│     │     como renovable   │
 │                      │     │                      │
 └──────────┬───────────┘     └──────────────────────┘
            │
@@ -111,7 +113,7 @@
 │                                                      │
 │   BEENERGY (nosotros)                                │
 │                                                      │
-│   Plataforma SaaS                                    │
+│   Infraestructura de certificación                   │
 │                                                      │
 │   ┌────────────┐  ┌────────────┐  ┌───────────────┐ │
 │   │  Dashboard  │  │  API       │  │  Contratos    │ │
@@ -133,7 +135,7 @@
 │   • Fees: ~0.00001 XLM por transacción               │
 │                                                      │
 │   La blockchain es infraestructura invisible.         │
-│   El usuario nunca la ve. La cooperativa tampoco.    │
+│   El comprador ve certificados, no transacciones.    │
 │   Solo está ahí para que todo sea verificable.       │
 │                                                      │
 └──────────────────────────────────────────────────────┘
@@ -141,68 +143,29 @@
 
 ---
 
-## Try Testnet / Waitlist
-
-Dos puertas de entrada al producto:
+## Ciclo de vida del token
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│                    beenergy.app                                 │
-│                                                                 │
-│    "Gestión de créditos energéticos para cooperativas"          │
-│                                                                 │
-│    ┌─────────────────────┐    ┌─────────────────────────────┐  │
-│    │                     │    │                             │  │
-│    │   [ Try Testnet ]   │    │   [ Waitlist ]              │  │
-│    │                     │    │                             │  │
-│    │   "Probá el         │    │   "Avisame cuando           │  │
-│    │    producto ahora   │    │    esté listo para          │  │
-│    │    con datos de     │    │    mi cooperativa"          │  │
-│    │    prueba. Sin      │    │                             │  │
-│    │    compromiso,      │    │   → Nombre cooperativa      │  │
-│    │    sin costo."      │    │   → Provincia               │  │
-│    │                     │    │   → Cantidad de usuarios    │  │
-│    │   → Crea wallet     │    │   → Email contacto          │  │
-│    │     de prueba       │    │                             │  │
-│    │   → Fondea con      │    │   "Te contactamos cuando    │  │
-│    │     Friendbot       │    │    tengamos fecha de        │  │
-│    │   → Ve el dashboard │    │    piloto en tu zona."      │  │
-│    │     con datos       │    │                             │  │
-│    │     simulados       │    │                             │  │
-│    │                     │    │                             │  │
-│    └─────────────────────┘    └─────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+MINT                          SALE                         RETIRE
+  │                             │                             │
+  ▼                             ▼                             ▼
+Cooperativa genera         Comprador externo           Comprador retira
+kWh renovables →           adquiere proto-             el certificado →
+se mintean tokens          certificados →              burn on-chain →
+a miembros por             tokens se transfieren       no se puede
+participación              al comprador                reusar (evita
+                                                       doble conteo)
 ```
-
-### Try Testnet — qué ve la cooperativa
-
-1. **Se crea una wallet de prueba** (Friendbot fondea con XLM de testnet)
-2. **Ve el dashboard admin** con datos simulados:
-   - 7 usuarios-generadores con lecturas de los últimos 5 días
-   - Créditos minteados, historial, totales
-3. **Puede interactuar**: validar una lectura pendiente, ver cómo se mintea el crédito, ver cómo se quema al aplicar a factura
-4. **Todo en testnet** — no cuesta nada, no es real, pero funciona exactamente igual
-
-### Waitlist — qué recopilamos
-
-| Campo | Para qué |
-|-------|----------|
-| Nombre de la cooperativa | Saber quiénes son |
-| Provincia | Saber qué regulación aplica |
-| Cantidad de usuarios-generadores | Dimensionar el plan |
-| Email de contacto | Avisar cuando haya piloto |
 
 ---
 
 ## Cuando me pierda, recuerdo esto
 
-1. **El cliente es la cooperativa**, no el usuario final.
-2. **El token es un crédito operativo**, no un activo especulativo.
-3. **1 token = 1 kWh validado**. Siempre. Sin excepción.
-4. **Sin validación de la cooperativa, no hay crédito.** La cooperativa es la autoridad.
-5. **Blockchain es invisible.** Está para trazabilidad y auditoría, no para que el usuario la vea.
-6. **BeEnergy gana plata con suscripción SaaS**, no con fees de transacción ni con tokens.
-7. **Fase 1 es intra-cooperativa.** 100% legal bajo Ley 27.424, Art. 12f.
-8. **No somos Xcapit.** Ellos hicieron un proyecto a medida para EPEC. Nosotros hacemos un producto replicable para cualquier cooperativa.
+1. **El token es un proto-certificado** — claim verificable de generación renovable, no energía física.
+2. **1 token = 1 kWh generado.** Siempre. Sin excepción.
+3. **El comprador es externo** — empresas ESG, fondos climáticos, no miembros de la cooperativa.
+4. **No es P2P** — los miembros no intercambian tokens entre ellos.
+5. **Burn = retiro del certificado.** Evita doble conteo del atributo ambiental.
+6. **Miembros = participantes de la cooperativa.** Tres modelos posibles (prosumers, copropietarios, mixto).
+7. **Blockchain es invisible.** Está para trazabilidad y auditoría, no para que nadie la vea.
+8. **Proto-certificado ≠ REC formal.** Para ser REC necesita metadata, verificación independiente, estándar reconocido.

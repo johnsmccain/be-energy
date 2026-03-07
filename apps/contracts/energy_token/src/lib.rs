@@ -10,7 +10,9 @@
 
 use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, String};
 use stellar_access::access_control::{self as access_control, AccessControl};
-use stellar_macros::{default_impl, only_role};
+use stellar_contract_utils::pausable::{self as pausable, Pausable};
+use stellar_contract_utils::upgradeable::UpgradeableInternal;
+use stellar_macros::{default_impl, only_role, when_not_paused, Upgradeable};
 use stellar_tokens::fungible::{burnable::FungibleBurnable, Base, FungibleToken};
 
 const TTL_THRESHOLD: u32 = 50_000;
@@ -21,6 +23,7 @@ pub enum DataKey {
     CooperativeId,
 }
 
+#[derive(Upgradeable)]
 #[contract]
 pub struct EnergyToken;
 
@@ -69,11 +72,7 @@ impl EnergyToken {
 
     /// Mintea tokens cuando se genera energía
     /// Solo puede ser llamado por cuentas con rol MINTER
-    ///
-    /// # Argumentos
-    /// * `to` - Dirección que recibirá los tokens
-    /// * `amount` - Cantidad de kWh (tokens) a mintear
-    /// * `minter` - Dirección que está minteando (debe tener rol MINTER)
+    #[when_not_paused]
     #[only_role(minter, "minter")]
     pub fn mint_energy(e: &Env, to: Address, amount: i128, minter: Address) {
         e.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
@@ -81,10 +80,7 @@ impl EnergyToken {
     }
 
     /// Quema tokens cuando se consume energía
-    ///
-    /// # Argumentos
-    /// * `from` - Dirección de la que se quemarán tokens
-    /// * `amount` - Cantidad de kWh (tokens) a quemar
+    #[when_not_paused]
     pub fn burn_energy(e: &Env, from: Address, amount: i128) {
         e.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         Base::burn(e, &from, amount);
@@ -92,9 +88,7 @@ impl EnergyToken {
 
     /// Otorga rol de minter a una nueva dirección
     /// Solo puede ser llamado por el admin
-    ///
-    /// # Argumentos
-    /// * `new_minter` - Dirección que recibirá el rol de minter
+    #[when_not_paused]
     pub fn grant_minter(e: &Env, new_minter: Address) {
         let admin = access_control::get_admin(e).expect("admin not set");
         admin.require_auth();
@@ -104,9 +98,7 @@ impl EnergyToken {
 
     /// Revoca rol de minter de una dirección
     /// Solo puede ser llamado por el admin
-    ///
-    /// # Argumentos
-    /// * `minter` - Dirección a la que se le revocará el rol
+    #[when_not_paused]
     pub fn revoke_minter(e: &Env, minter: Address) {
         let admin = access_control::get_admin(e).expect("admin not set");
         admin.require_auth();
@@ -134,25 +126,107 @@ impl EnergyToken {
 }
 
 // ============================================================================
-// Implementaciones por defecto de OpenZeppelin
+// Implementaciones SEP-41 (expandidas para soportar #[when_not_paused])
 // ============================================================================
 
-/// Implementa funciones estándar SEP-41 (transfer, balance, approve, etc.)
-#[default_impl]
 #[contractimpl]
 impl FungibleToken for EnergyToken {
     type ContractType = Base;
+
+    fn total_supply(e: &Env) -> i128 {
+        Self::ContractType::total_supply(e)
+    }
+
+    fn balance(e: &Env, account: Address) -> i128 {
+        Self::ContractType::balance(e, &account)
+    }
+
+    fn allowance(e: &Env, owner: Address, spender: Address) -> i128 {
+        Self::ContractType::allowance(e, &owner, &spender)
+    }
+
+    #[when_not_paused]
+    fn transfer(e: &Env, from: Address, to: Address, amount: i128) {
+        Self::ContractType::transfer(e, &from, &to, amount);
+    }
+
+    #[when_not_paused]
+    fn transfer_from(e: &Env, spender: Address, from: Address, to: Address, amount: i128) {
+        Self::ContractType::transfer_from(e, &spender, &from, &to, amount);
+    }
+
+    fn approve(e: &Env, owner: Address, spender: Address, amount: i128, live_until_ledger: u32) {
+        Self::ContractType::approve(e, &owner, &spender, amount, live_until_ledger);
+    }
+
+    fn decimals(e: &Env) -> u32 {
+        Self::ContractType::decimals(e)
+    }
+
+    fn name(e: &Env) -> String {
+        Self::ContractType::name(e)
+    }
+
+    fn symbol(e: &Env) -> String {
+        Self::ContractType::symbol(e)
+    }
 }
 
-/// Implementa funciones de quema
-#[default_impl]
+/// Implementa funciones de quema (expandidas para soportar #[when_not_paused])
 #[contractimpl]
-impl FungibleBurnable for EnergyToken {}
+impl FungibleBurnable for EnergyToken {
+    #[when_not_paused]
+    fn burn(e: &Env, from: Address, amount: i128) {
+        Base::burn(e, &from, amount);
+    }
+
+    #[when_not_paused]
+    fn burn_from(e: &Env, spender: Address, from: Address, amount: i128) {
+        Base::burn_from(e, &spender, &from, amount);
+    }
+}
 
 /// Implementa sistema de control de acceso
 #[default_impl]
 #[contractimpl]
 impl AccessControl for EnergyToken {}
+
+// ============================================================================
+// Pausable — freno de emergencia (solo admin)
+// ============================================================================
+
+#[contractimpl]
+impl Pausable for EnergyToken {
+    fn paused(e: &Env) -> bool {
+        pausable::paused(e)
+    }
+
+    fn pause(e: &Env, caller: Address) {
+        caller.require_auth();
+        let admin = access_control::get_admin(e).expect("admin not set");
+        assert!(caller == admin, "only admin can pause");
+        pausable::pause(e);
+    }
+
+    fn unpause(e: &Env, caller: Address) {
+        caller.require_auth();
+        let admin = access_control::get_admin(e).expect("admin not set");
+        assert!(caller == admin, "only admin can unpause");
+        pausable::unpause(e);
+    }
+}
+
+// ============================================================================
+// Upgradeable — permite actualizar WASM sin redeployar (solo admin)
+// ============================================================================
+
+impl UpgradeableInternal for EnergyToken {
+    fn _require_auth(e: &Env, operator: &Address) {
+        operator.require_auth();
+        let admin = access_control::get_admin(e).expect("admin not set");
+        assert!(*operator == admin, "only admin can upgrade");
+    }
+}
 
 // ============================================================================
 // Tests
@@ -161,7 +235,7 @@ impl AccessControl for EnergyToken {}
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, Env};
+    use soroban_sdk::{testutils::Address as _, BytesN, Env};
 
     // Helper: creates a token contract with zero initial supply
     fn setup<'a>(env: &'a Env) -> (EnergyTokenClient<'a>, Address, Address) {
@@ -557,5 +631,134 @@ mod test {
         let (client, _, distribution) = setup(&env);
 
         client.revoke_minter(&distribution);
+    }
+
+    // ========================================================================
+    // Pausable
+    // ========================================================================
+
+    #[test]
+    fn test_initial_state_not_paused() {
+        let env = Env::default();
+        let (client, _, _) = setup(&env);
+        assert!(!client.paused());
+    }
+
+    #[test]
+    fn test_admin_can_pause() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, _) = setup(&env);
+
+        client.pause(&admin);
+        assert!(client.paused());
+    }
+
+    #[test]
+    fn test_admin_can_unpause() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, _) = setup(&env);
+
+        client.pause(&admin);
+        assert!(client.paused());
+
+        client.unpause(&admin);
+        assert!(!client.paused());
+    }
+
+    #[test]
+    #[should_panic(expected = "only admin can pause")]
+    fn test_non_admin_cannot_pause() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, _, _) = setup(&env);
+        let non_admin = Address::generate(&env);
+
+        client.pause(&non_admin);
+    }
+
+    #[test]
+    #[should_panic(expected = "only admin can unpause")]
+    fn test_non_admin_cannot_unpause() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, _) = setup(&env);
+
+        client.pause(&admin);
+        let non_admin = Address::generate(&env);
+        client.unpause(&non_admin);
+    }
+
+    #[test]
+    fn test_mint_fails_when_paused() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, distribution) = setup(&env);
+        let user = Address::generate(&env);
+
+        client.pause(&admin);
+        let result = client.try_mint_energy(&user, &100_0000000, &distribution);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_burn_fails_when_paused() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, distribution) = setup(&env);
+        let user = Address::generate(&env);
+
+        client.mint_energy(&user, &100_0000000, &distribution);
+        client.pause(&admin);
+        let result = client.try_burn_energy(&user, &50_0000000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_transfer_fails_when_paused() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, distribution) = setup(&env);
+        let user1 = Address::generate(&env);
+        let user2 = Address::generate(&env);
+
+        client.mint_energy(&user1, &100_0000000, &distribution);
+        client.pause(&admin);
+        let result = client.try_transfer(&user1, &user2, &50_0000000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_operations_resume_after_unpause() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, distribution) = setup(&env);
+        let user = Address::generate(&env);
+
+        // Pause and verify operations fail
+        client.pause(&admin);
+        assert!(client.try_mint_energy(&user, &100_0000000, &distribution).is_err());
+
+        // Unpause and verify operations work
+        client.unpause(&admin);
+        client.mint_energy(&user, &100_0000000, &distribution);
+        assert_eq!(client.balance(&user), 100_0000000);
+    }
+
+    // ========================================================================
+    // Upgradeable
+    // ========================================================================
+
+    #[test]
+    #[should_panic(expected = "only admin can upgrade")]
+    fn test_upgrade_requires_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, _, _) = setup(&env);
+        let non_admin = Address::generate(&env);
+        let fake_hash = BytesN::from_array(&env, &[0u8; 32]);
+
+        client.upgrade(&fake_hash, &non_admin);
     }
 }

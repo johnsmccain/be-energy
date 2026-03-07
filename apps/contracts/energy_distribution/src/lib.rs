@@ -8,6 +8,10 @@
 //! - Integración con token contract para minteo
 
 use soroban_sdk::{contract, contractimpl, contracttype, contracterror, Address, Env, Vec};
+use stellar_access::access_control::{self as access_control};
+use stellar_contract_utils::pausable::{self as pausable, Pausable};
+use stellar_contract_utils::upgradeable::UpgradeableInternal;
+use stellar_macros::{when_not_paused, Upgradeable};
 
 const INSTANCE_TTL_THRESHOLD: u32 = 50_000;
 const INSTANCE_TTL_EXTEND_TO: u32 = 100_000;
@@ -38,7 +42,6 @@ pub struct Member {
 
 #[contracttype]
 pub enum DataKey {
-    Admin,
     TokenContract,
     RequiredApprovals,
     MembersInitialized,
@@ -48,6 +51,7 @@ pub enum DataKey {
     TotalGenerated,
 }
 
+#[derive(Upgradeable)]
 #[contract]
 pub struct EnergyDistribution;
 
@@ -76,7 +80,7 @@ impl EnergyDistribution {
         token_contract: Address,
         required_approvals: u32,
     ) {
-        env.storage().instance().set(&DataKey::Admin, &admin);
+        access_control::set_admin(env, &admin);
         env.storage()
             .instance()
             .set(&DataKey::TokenContract, &token_contract);
@@ -96,11 +100,7 @@ impl EnergyDistribution {
     }
 
     /// Agrega miembros con multi-firma
-    ///
-    /// # Argumentos
-    /// * `approvers` - Lista de aprobadores que firman la transacción
-    /// * `members` - Lista de direcciones de miembros
-    /// * `percents` - Lista de porcentajes de propiedad (deben sumar 100)
+    #[when_not_paused]
     pub fn add_members_multisig(
         env: Env,
         approvers: Vec<Address>,
@@ -173,11 +173,9 @@ impl EnergyDistribution {
     }
 
     /// Registra generación de energía y distribuye tokens
-    ///
-    /// # Argumentos
-    /// * `kwh_generated` - Cantidad de kWh generados (con 7 decimales, ej: 100_0000000 = 100 kWh)
+    #[when_not_paused]
     pub fn record_generation(env: Env, kwh_generated: i128) -> Result<(), DistributionError> {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        let admin = access_control::get_admin(&env).expect("admin not set");
         admin.require_auth();
 
         // Verificar que los miembros estén inicializados
@@ -260,7 +258,7 @@ impl EnergyDistribution {
     }
 
     pub fn get_admin(env: Env) -> Option<Address> {
-        env.storage().instance().get(&DataKey::Admin)
+        access_control::get_admin(&env)
     }
 
     pub fn get_token_contract(env: Env) -> Option<Address> {
@@ -292,6 +290,47 @@ impl EnergyDistribution {
             .unwrap_or_else(|| Vec::new(&env))
     }
 }
+
+// ============================================================================
+// Pausable — freno de emergencia (solo admin)
+// ============================================================================
+
+#[contractimpl]
+impl Pausable for EnergyDistribution {
+    fn paused(e: &Env) -> bool {
+        pausable::paused(e)
+    }
+
+    fn pause(e: &Env, caller: Address) {
+        caller.require_auth();
+        let admin = access_control::get_admin(e).expect("admin not set");
+        assert!(caller == admin, "only admin can pause");
+        pausable::pause(e);
+    }
+
+    fn unpause(e: &Env, caller: Address) {
+        caller.require_auth();
+        let admin = access_control::get_admin(e).expect("admin not set");
+        assert!(caller == admin, "only admin can unpause");
+        pausable::unpause(e);
+    }
+}
+
+// ============================================================================
+// Upgradeable — permite actualizar WASM sin redeployar (solo admin)
+// ============================================================================
+
+impl UpgradeableInternal for EnergyDistribution {
+    fn _require_auth(e: &Env, operator: &Address) {
+        operator.require_auth();
+        let admin = access_control::get_admin(e).expect("admin not set");
+        assert!(*operator == admin, "only admin can upgrade");
+    }
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
 
 #[cfg(test)]
 mod test {
@@ -495,5 +534,102 @@ mod test {
         let (client, _, _) = setup(&env);
 
         assert_eq!(client.get_member_list().len(), 0);
+    }
+
+    // ========================================================================
+    // Pausable
+    // ========================================================================
+
+    #[test]
+    fn test_initial_state_not_paused() {
+        let env = Env::default();
+        let (client, _, _) = setup(&env);
+        assert!(!client.paused());
+    }
+
+    #[test]
+    fn test_admin_can_pause() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, _) = setup(&env);
+
+        client.pause(&admin);
+        assert!(client.paused());
+    }
+
+    #[test]
+    fn test_admin_can_unpause() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, _) = setup(&env);
+
+        client.pause(&admin);
+        assert!(client.paused());
+
+        client.unpause(&admin);
+        assert!(!client.paused());
+    }
+
+    #[test]
+    #[should_panic(expected = "only admin can pause")]
+    fn test_non_admin_cannot_pause() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, _, _) = setup(&env);
+        let non_admin = Address::generate(&env);
+
+        client.pause(&non_admin);
+    }
+
+    #[test]
+    fn test_add_members_fails_when_paused() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, _) = setup(&env);
+
+        client.pause(&admin);
+
+        let m1 = Address::generate(&env);
+        let m2 = Address::generate(&env);
+        let approvers = vec![&env, m1.clone(), m2.clone(), admin.clone()];
+        let members = vec![&env, m1.clone(), m2.clone()];
+        let percents = vec![&env, 60, 40];
+
+        let result = client.try_add_members_multisig(&approvers, &members, &percents);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_record_generation_fails_when_paused() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, _) = setup(&env);
+
+        client.pause(&admin);
+
+        let result = client.try_record_generation(&100_0000000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_operations_resume_after_unpause() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, _) = setup(&env);
+
+        // Pause and verify add_members fails
+        client.pause(&admin);
+        let m1 = Address::generate(&env);
+        let m2 = Address::generate(&env);
+        let approvers = vec![&env, m1.clone(), m2.clone(), admin.clone()];
+        let members = vec![&env, m1.clone(), m2.clone()];
+        let percents = vec![&env, 60, 40];
+        assert!(client.try_add_members_multisig(&approvers, &members, &percents).is_err());
+
+        // Unpause and verify operations work
+        client.unpause(&admin);
+        let result = client.try_add_members_multisig(&approvers, &members, &percents);
+        assert!(result.is_ok());
+        assert!(client.are_members_initialized());
     }
 }
