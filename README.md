@@ -1,6 +1,6 @@
-# BeEnergy ⚡🐝
+# BeEnergy
 
-**Neighborhood solar energy marketplace on Stellar**
+**Renewable energy certification infrastructure on Stellar**
 
 [![Deployed on Vercel](https://img.shields.io/badge/deployed-vercel-black)](https://be-energy-six.vercel.app)
 [![Docs](https://img.shields.io/badge/docs-GitBook-blue)](https://marias-organization-50.gitbook.io/beenergy/)
@@ -8,83 +8,74 @@
 [![DoraHacks](https://img.shields.io/badge/DoraHacks-Featured-orange)](https://dorahacks.io/buidl/36793)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
-BeEnergy turns solar surplus into digital credits that neighbors can sell, share, or save. The local electric cooperative validates generation and guarantees the process.
+BeEnergy tokenizes renewable energy production as verifiable environmental certificates on Stellar. Cooperatives generate solar energy, BeEnergy issues proto-certificates on-chain, and external buyers (companies, ESG funds, climate programs) purchase and retire them.
 
 ---
 
-## The Problem
+## What it does
 
-Communities worldwide are adopting solar panels, but:
-- 🔴 Centralized utilities charge unpredictable rates
-- 🔴 Zero transparency in energy distribution  
-- 🔴 No way to monetize surplus generation
-- 🔴 High fees for P2P energy sharing
+Cooperatives and community solar installations generate renewable energy. BeEnergy measures that production and issues tokens that represent the environmental attribute of that generation — not the electricity itself.
 
-## The Solution
+```
+Cooperative generates solar energy
+        |
+Production is measured (meter / backend)
+        |
+BeEnergy mints tokens (1 token = 1 kWh generated)
+        |
+External buyer purchases certificates
+        |
+Buyer retires certificate (burn on-chain)
+```
 
-BeEnergy creates **local energy marketplaces** where:
-- ✅ Homes tokenize solar generation as **HoneyDrops (HDROP)** — 1 kWh = 1 token
-- ✅ Neighbors trade energy directly using **Stellar blockchain**
-- ✅ Smart contracts ensure **transparent, fair distribution**
-- ✅ Communities gain **energy independence**
-
-**Target:** Cooperative housing communities (3-10 homes per "Hive") in Argentina.
+Each token is a **proto-certificate**: a verifiable on-chain claim that 1 kWh of renewable energy was generated. It is not a financial instrument, not electricity for consumption, and not designed for trading between members.
 
 ---
 
-## 🏆 Recognition
+## Recognition
 
 - **Featured Project** at [Stellar Buenos Aires Hackathon 2025](https://dorahacks.io/buidl/36793)
 - **Innovation Certificate** awarded by Stellar jury
-- Validated by blockchain industry experts
 
 ---
 
-## 🚀 Live Demo
+## Live Demo
 
-**Frontend:** https://be-energy-six.vercel.app  
+**Frontend:** https://be-energy-six.vercel.app
 **Network:** Stellar Testnet
 
-Connect with Freighter wallet to explore the dashboard, marketplace, and trading features.
+---
+
+## Smart Contracts (Soroban)
+
+Deployed on Stellar Testnet:
+
+| Contract | Address | Purpose |
+|----------|---------|---------|
+| `energy_token` | [`CCYOVOFD...MRPBA6`](https://stellar.expert/explorer/testnet/contract/CCYOVOFDJ5BVBSI6HADLWETTUF3BU423MEAWBSBWV2X5UVNKSJMRPBA6) | SEP-41 fungible token representing renewable generation certificates |
+| `energy_distribution` | [`CBTDPLFN...NX2UDZ`](https://stellar.expert/explorer/testnet/contract/CBTDPLFNFGWVOD4HXDKW4EH5L3D2YGOY5CWTFCJM5TEWFL4VQTNX2UDZ) | Allocates certificates to cooperative members by participation |
+| `community_governance` | [`CCH2EXXN...BJD6YI`](https://stellar.expert/explorer/testnet/contract/CCH2EXXNSDW2BAKBIPFAG6CCZS6LV4VJFUP2CZZCW5LEY4JOAXBJD6YI) | Cooperative governance (proposals) |
+
+Built with **OpenZeppelin Stellar v0.5.1** (Pausable + Upgradeable) and **Soroban SDK 23.1.0**.
+
+65 tests passing. See [docs/CONTRACTS.md](docs/CONTRACTS.md) for full reference.
 
 ---
 
-## Architecture
-
-### Smart Contracts (Soroban)
-
-**Deployed on Stellar Testnet:**
-
-| Contract | Address | Description |
-|----------|---------|-------------|
-| `energy_token` | `CD7W5YHA...T3ZL` | HDROP token (SEP-41) with mint/burn |
-| `energy_distribution` | `CD3LXNS5...G6QK` | Multi-sig energy distribution |
-| `community_governance` | `CBKUWQZ2...WPDM` | On-chain voting system |
-
-Built with **OpenZeppelin Stellar** for security and **Soroban SDK 23.1.0**.
-
-Full addresses in `.env.example`.
-
-### Frontend
-
-- **Framework:** Next.js 16 + React 19 + TypeScript
-- **Wallet:** Freighter integration via Stellar Wallets Kit
-- **UI:** Tailwind v4 + shadcn/ui (Radix primitives)
-- **Deployment:** Vercel (automatic from `main` branch)
-
-### Monorepo Structure
+## Monorepo Structure
 
 ```
 be-energy/
 ├── apps/
-│   ├── contracts/      # Soroban smart contracts (Rust)
+│   ├── contracts/           # Soroban smart contracts (Rust)
 │   │   ├── energy_token/
 │   │   ├── energy_distribution/
 │   │   └── community_governance/
-│   └── web/           # Next.js application
+│   └── web/                 # Next.js application
+├── packages/
+│   └── stellar/             # Shared Stellar utilities
 └── tooling/
-    ├── issues/        # GitHub issue templates
-    └── scripts/       # Automation scripts
+    └── issues/              # GitHub issue templates
 ```
 
 Powered by **Turborepo** + **pnpm workspaces**.
@@ -96,12 +87,8 @@ Powered by **Turborepo** + **pnpm workspaces**.
 ### Prerequisites
 
 - **Node.js** v22+
-- **pnpm** v10+ (install via `corepack enable`)
+- **pnpm** v10+ (`corepack enable`)
 - **Rust** + Cargo (for contracts)
-- **Windows only:** Visual Studio Build Tools with the **"Desktop development with C++"** workload
-   Required to compile native Rust dependencies (e.g., to run `cargo test`).
-   → [Download installer](https://aka.ms/vs/17/release/vs_BuildTools.exe) (~3-6 GB)
-   After installing, restart your terminal before running any Rust commands.
 
 ### Installation
 
@@ -117,16 +104,15 @@ pnpm install
 pnpm dev
 ```
 
-Frontend runs on: `http://localhost:3000`
+Frontend: `http://localhost:3000`
 
-### Build Contracts
+### Build and Test Contracts
 
 ```bash
 cd apps/contracts
 stellar contract build
+cargo test
 ```
-
-Outputs: `target/wasm32v1-none/release/*.wasm`
 
 ---
 
@@ -135,10 +121,11 @@ Outputs: `target/wasm32v1-none/release/*.wasm`
 | Layer | Technology |
 |-------|-----------|
 | Blockchain | Stellar (Soroban smart contracts) |
-| Smart Contracts | Rust + OpenZeppelin Stellar |
+| Smart Contracts | Rust + OpenZeppelin Stellar v0.5.1 |
 | Frontend | Next.js 16 + React 19 + TypeScript |
 | Styling | Tailwind CSS v4 + shadcn/ui |
 | Wallet | Freighter + Stellar Wallets Kit |
+| Backend | Supabase |
 | Deployment | Vercel |
 | Monorepo | Turborepo + pnpm |
 
@@ -146,79 +133,33 @@ Outputs: `target/wasm32v1-none/release/*.wasm`
 
 ## Contributing
 
-We welcome contributions from the community!
-
-### How to Contribute
-
 1. Browse [open issues](https://github.com/BuenDia-Builders/be-energy/issues)
 2. Comment to claim an issue
 3. Fork, code, and submit a PR to `develop`
 
-### Development Workflow
+### Branch Structure
+
+- `main` — Production (protected)
+- `develop` — Active development
 
 ```bash
-# 1. Fork and clone
 git clone https://github.com/YOUR-USERNAME/be-energy.git
 cd be-energy
-
-# 2. Create feature branch from develop
 git checkout develop
 git checkout -b feat/your-feature
-
-# 3. Make changes and test
-pnpm install
-pnpm dev
-
-# 4. Submit PR to develop branch
+pnpm install && pnpm dev
+# Submit PR to develop branch
 ```
 
-**Branch Structure:**
-- `main` → Production (protected)
-- `develop` → Active development
-
 ---
 
-## Business Model
+## Product Levels
 
-**Revenue:**
-- 1-3% transaction fees on P2P energy trades
-- Hardware partnerships (smart meter providers)
-
-**User Savings:**
-- 40-60% reduction in electrical bills
-- Monetize surplus solar generation
-- Energy independence from utilities
-
----
-
-## Roadmap
-
-**Q4 2025**
-- ✅ Concept development and validation
-- ✅ Stellar Buenos Aires Hackathon
-- ✅ Innovation Certificate awarded
-- ✅ Initial smart contracts deployed
-
-**Q1 2026 — v0.2.0** _(Drips Wave #2)_
-- ✅ Monorepo architecture upgrade
-- ✅ Contracts refactored with OpenZeppelin Stellar
-- ✅ Frontend deployed to production
-- ✅ Frontend connected to real contract data
-
-**Q1 2026 — v0.3.0** _(Current)_
-- ✅ Marketplace P2P trading with Supabase backend
-- ✅ API routes for offers, readings, minting, DeFindex
-- ✅ GitBook documentation
-
-**Q2 2026**
-- Deploy to Stellar mainnet
-- Pilot with 1-2 cooperative communities
-- Smart meter hardware integrations
-
-**Q3 2026**
-- Scale to 10+ communities
-- Mobile app (React Native)
-- Advanced analytics dashboard
+| Level | What | Status |
+|-------|------|--------|
+| 1 — Internal registry | Token = production record for cooperatives | Current |
+| 2 — Verifiable certification | Smart meters + oracles + independent verification | Next |
+| 3 — Recognized standard | Integration with I-REC, Energy Web, TIGR | Future |
 
 ---
 
@@ -228,4 +169,4 @@ Apache-2.0 — See [LICENSE](LICENSE) for details.
 
 ---
 
-**Built with ❤️ on Stellar | Código Alebrije 2026**
+**Built on Stellar | BuenDia Builders 2026**
