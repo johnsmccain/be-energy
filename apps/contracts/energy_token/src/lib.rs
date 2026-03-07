@@ -8,13 +8,18 @@
 //! - Quema: Cuando se consume energía
 //! - Compatible con Stellar DEX para trading P2P
 
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, String};
 use stellar_access::access_control::{self as access_control, AccessControl};
 use stellar_macros::{default_impl, only_role};
 use stellar_tokens::fungible::{burnable::FungibleBurnable, Base, FungibleToken};
 
 const TTL_THRESHOLD: u32 = 50_000;
 const TTL_EXTEND_TO: u32 = 100_000;
+
+#[contracttype]
+pub enum DataKey {
+    CooperativeId,
+}
 
 #[contract]
 pub struct EnergyToken;
@@ -27,19 +32,23 @@ impl EnergyToken {
     /// * `admin` - Administrador del token
     /// * `distribution_contract` - Contrato que podrá mintear tokens
     /// * `initial_supply` - Supply inicial (normalmente 0 para energía)
+    /// * `name` - Nombre del token (ej: "CoopSolar Buenos Aires")
+    /// * `symbol` - Símbolo del token (ej: "CSBA")
+    /// * `cooperative_id` - Identificador de la cooperativa
     pub fn __constructor(
         e: &Env,
         admin: Address,
         distribution_contract: Address,
         initial_supply: i128,
+        name: String,
+        symbol: String,
+        cooperative_id: String,
     ) {
         // Configurar metadatos del token
-        Base::set_metadata(
-            e,
-            7, // 7 decimales (estándar Stellar)
-            String::from_str(e, "HoneyDrop"),
-            String::from_str(e, "HDROP"),
-        );
+        Base::set_metadata(e, 7, name, symbol);
+
+        // Almacenar cooperative_id
+        e.storage().instance().set(&DataKey::CooperativeId, &cooperative_id);
 
         // Configurar admin del sistema de control de acceso
         access_control::set_admin(e, &admin);
@@ -114,6 +123,14 @@ impl EnergyToken {
     pub fn admin(e: &Env) -> Address {
         access_control::get_admin(e).expect("admin not set")
     }
+
+    /// Obtiene el ID de la cooperativa dueña de este token
+    pub fn get_cooperative_id(e: &Env) -> String {
+        e.storage()
+            .instance()
+            .get(&DataKey::CooperativeId)
+            .expect("cooperative_id not set")
+    }
 }
 
 // ============================================================================
@@ -150,7 +167,13 @@ mod test {
     fn setup<'a>(env: &'a Env) -> (EnergyTokenClient<'a>, Address, Address) {
         let admin = Address::generate(env);
         let distribution = Address::generate(env);
-        let contract_id = env.register(EnergyToken, (&admin, &distribution, &0i128));
+        let name = String::from_str(env, "TestToken");
+        let symbol = String::from_str(env, "TEST");
+        let coop_id = String::from_str(env, "coop-001");
+        let contract_id = env.register(
+            EnergyToken,
+            (&admin, &distribution, &0i128, &name, &symbol, &coop_id),
+        );
         let client = EnergyTokenClient::new(env, &contract_id);
         (client, admin, distribution)
     }
@@ -165,12 +188,16 @@ mod test {
         env.mock_all_auths();
         let (client, admin, distribution) = setup(&env);
 
-        assert_eq!(client.name(), String::from_str(&env, "HoneyDrop"));
-        assert_eq!(client.symbol(), String::from_str(&env, "HDROP"));
+        assert_eq!(client.name(), String::from_str(&env, "TestToken"));
+        assert_eq!(client.symbol(), String::from_str(&env, "TEST"));
         assert_eq!(client.decimals(), 7);
         assert_eq!(client.total_supply(), 0);
         assert_eq!(client.admin(), admin);
         assert!(client.is_minter(&distribution));
+        assert_eq!(
+            client.get_cooperative_id(),
+            String::from_str(&env, "coop-001")
+        );
     }
 
     #[test]
@@ -180,7 +207,13 @@ mod test {
         let admin = Address::generate(&env);
         let distribution = Address::generate(&env);
 
-        let contract_id = env.register(EnergyToken, (&admin, &distribution, &1000_0000000i128));
+        let name = String::from_str(&env, "TestToken");
+        let symbol = String::from_str(&env, "TEST");
+        let coop_id = String::from_str(&env, "coop-001");
+        let contract_id = env.register(
+            EnergyToken,
+            (&admin, &distribution, &1000_0000000i128, &name, &symbol, &coop_id),
+        );
         let client = EnergyTokenClient::new(&env, &contract_id);
 
         assert_eq!(client.balance(&admin), 1000_0000000);
@@ -195,6 +228,30 @@ mod test {
 
         assert_eq!(client.balance(&admin), 0);
         assert_eq!(client.total_supply(), 0);
+    }
+
+    #[test]
+    fn test_cooperative_id() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let distribution = Address::generate(&env);
+        let name = String::from_str(&env, "CoopSolar BA");
+        let symbol = String::from_str(&env, "CSBA");
+        let coop_id = String::from_str(&env, "coop-buenos-aires");
+
+        let contract_id = env.register(
+            EnergyToken,
+            (&admin, &distribution, &0i128, &name, &symbol, &coop_id),
+        );
+        let client = EnergyTokenClient::new(&env, &contract_id);
+
+        assert_eq!(client.name(), String::from_str(&env, "CoopSolar BA"));
+        assert_eq!(client.symbol(), String::from_str(&env, "CSBA"));
+        assert_eq!(
+            client.get_cooperative_id(),
+            String::from_str(&env, "coop-buenos-aires")
+        );
     }
 
     // ========================================================================

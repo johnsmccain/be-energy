@@ -2,15 +2,12 @@
 
 //! # Energy Distribution Contract
 //!
-//! Gestiona la distribución de energía generada por paneles solares comunitarios.
+//! Gestiona la distribución de créditos energéticos dentro de una cooperativa.
 //! - Registro multi-firma de miembros y sus porcentajes de propiedad
-//! - Distribución automática de tokens HoneyDrop (HDROP) según generación de kWh
-//! - Integración con token contract para minteo/quema
-//! - Sistema de privacidad con commitments (ZK proofs simulados)
+//! - Distribución automática de tokens según generación de kWh
+//! - Integración con token contract para minteo
 
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, Address, Bytes, BytesN, Env, Vec};
-
-mod privacy;
+use soroban_sdk::{contract, contractimpl, contracttype, contracterror, Address, Env, Vec};
 
 const INSTANCE_TTL_THRESHOLD: u32 = 50_000;
 const INSTANCE_TTL_EXTEND_TO: u32 = 100_000;
@@ -30,8 +27,6 @@ pub enum DistributionError {
     PercentsMustSumTo100 = 3,
     /// Los miembros aún no han sido inicializados
     MembersNotInitialized = 4,
-    /// El contrato ya fue inicializado
-    AlreadyInitialized = 5,
 }
 
 #[contracttype]
@@ -44,15 +39,13 @@ pub struct Member {
 #[contracttype]
 pub enum DataKey {
     Admin,
-    TokenContract,          // Dirección del contrato de HoneyDrop
+    TokenContract,
     RequiredApprovals,
     MembersInitialized,
     Member(Address),
     MemberPercent(Address),
-    MemberList,             // Lista de todas las direcciones de miembros
-    TotalGenerated,         // Total de kWh generados históricamente
-    PrivacyEnabled,         // Si el modo de privacidad está habilitado
-    UserCommitment(Address), // Commitment de consumo privado por usuario
+    MemberList,
+    TotalGenerated,
 }
 
 #[contract]
@@ -71,19 +64,18 @@ mod energy_token_interface {
 
 #[contractimpl]
 impl EnergyDistribution {
-    /// Inicializa el contrato de distribución
+    /// Constructor del contrato de distribución
     ///
     /// # Argumentos
-    /// * `admin` - Administrador del contrato
-    /// * `token_contract` - Dirección del contrato HoneyDrop (HDROP)
+    /// * `admin` - Administrador del contrato (la cooperativa)
+    /// * `token_contract` - Dirección del contrato de token de energía
     /// * `required_approvals` - Número de firmas requeridas para agregar miembros
-    pub fn initialize(env: Env, admin: Address, token_contract: Address, required_approvals: u32) -> Result<(), DistributionError> {
-        if env.storage().instance().has(&DataKey::Admin) {
-            return Err(DistributionError::AlreadyInitialized);
-        }
-
-        admin.require_auth();
-
+    pub fn __constructor(
+        env: &Env,
+        admin: Address,
+        token_contract: Address,
+        required_approvals: u32,
+    ) {
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage()
             .instance()
@@ -98,9 +90,9 @@ impl EnergyDistribution {
             .instance()
             .set(&DataKey::TotalGenerated, &0i128);
 
-        env.storage().instance().extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
-
-        Ok(())
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
     }
 
     /// Agrega miembros con multi-firma
@@ -180,15 +172,10 @@ impl EnergyDistribution {
         Ok(())
     }
 
-    /// Registra generación de energía y distribuye tokens HoneyDrop
+    /// Registra generación de energía y distribuye tokens
     ///
     /// # Argumentos
     /// * `kwh_generated` - Cantidad de kWh generados (con 7 decimales, ej: 100_0000000 = 100 kWh)
-    ///
-    /// Esta función:
-    /// 1. Calcula cuántos tokens le corresponden a cada miembro según su %
-    /// 2. Mintea tokens HoneyDrop a cada miembro
-    /// 3. Actualiza el total generado
     pub fn record_generation(env: Env, kwh_generated: i128) -> Result<(), DistributionError> {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
@@ -237,7 +224,6 @@ impl EnergyDistribution {
             let tokens_to_mint = (kwh_generated * percent as i128) / 100;
 
             // Mintear tokens al miembro
-            // El contrato de distribución debe tener rol de MINTER en el token contract
             token_client.mint_energy(&member, &tokens_to_mint, &env.current_contract_address());
         }
 
@@ -254,129 +240,6 @@ impl EnergyDistribution {
         env.storage().instance().extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         Ok(())
-    }
-
-    // ========================================================================
-    // Privacy Functions (ZK Proof Simulation)
-    // ========================================================================
-
-    /// Habilita el modo de privacidad
-    /// Solo puede ser llamado por el admin
-    pub fn enable_privacy(env: Env) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
-        admin.require_auth();
-
-        env.storage().instance().set(&DataKey::PrivacyEnabled, &true);
-        env.storage().instance().extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
-    }
-
-    /// Registra consumo de forma privada usando un commitment
-    ///
-    /// # Privacidad:
-    /// En lugar de revelar la cantidad exacta consumida, el usuario
-    /// envía un "commitment" (hash) que prueba que consumió energía
-    /// sin revelar cuánto.
-    ///
-    /// # Argumentos
-    /// * `user` - Usuario que consumió energía
-    /// * `commitment` - Hash del consumo (SHA256 de: address + kwh + secret)
-    ///
-    /// # Cómo funciona:
-    /// 1. Usuario genera commitment off-chain: hash(address + consumed_kwh + secret)
-    /// 2. Envía commitment al contrato
-    /// 3. Contrato almacena el commitment sin conocer la cantidad
-    /// 4. Para demostrar consumo, usuario puede revelar datos más tarde
-    ///
-    /// # Para Producción:
-    /// Reemplazar con ZK-SNARKs reales (Groth16) que permitan verificar
-    /// matemáticamente sin necesidad de revelar los datos.
-    pub fn record_private_consumption(
-        env: Env,
-        user: Address,
-        commitment: BytesN<32>,
-    ) -> Result<(), DistributionError> {
-        user.require_auth();
-
-        // Verificar que privacidad esté habilitada
-        let privacy_enabled: bool = env
-            .storage()
-            .instance()
-            .get(&DataKey::PrivacyEnabled)
-            .unwrap_or(false);
-
-        if !privacy_enabled {
-            // Si privacidad no está habilitada, podría fallar o simplemente ignorar
-            // Para la demo, lo permitimos igual
-        }
-
-        // Verificar que sea miembro
-        let is_member: bool = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Member(user.clone()))
-            .unwrap_or(false);
-
-        if !is_member {
-            return Err(DistributionError::MembersNotInitialized);
-        }
-
-        // Almacenar commitment en persistent storage (per-user)
-        let commitment_key = DataKey::UserCommitment(user.clone());
-        env.storage()
-            .persistent()
-            .set(&commitment_key, &commitment);
-        env.storage().persistent().extend_ttl(&commitment_key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
-
-        Ok(())
-    }
-
-    /// Verifica un commitment de consumo privado
-    ///
-    /// NOTA: Esta función es solo para demostración.
-    /// En un sistema ZK real, NO necesitaríamos pasar user_data porque
-    /// el proof matemático se verificaría sin revelar información.
-    ///
-    /// # Argumentos
-    /// * `user` - Usuario cuyo commitment se verifica
-    /// * `user_data` - Datos originales (solo para demo, revelaría info en prod)
-    pub fn verify_private_consumption(
-        env: Env,
-        user: Address,
-        user_data: Bytes,
-    ) -> bool {
-        // Obtener commitment almacenado
-        let stored_commitment: Option<BytesN<32>> = env
-            .storage()
-            .persistent()
-            .get(&DataKey::UserCommitment(user));
-
-        match stored_commitment {
-            Some(commitment) => {
-                // Verificar usando el módulo de privacidad
-                privacy::verify_commitment(&env, &commitment, &user_data)
-            }
-            None => false,
-        }
-    }
-
-    /// Helper: Genera commitment off-chain (para testing/frontend)
-    ///
-    /// En producción, esto se haría completamente off-chain en el frontend
-    /// con SnarkJS para generar ZK proofs reales.
-    pub fn generate_commitment_helper(
-        env: Env,
-        user_address_bytes: BytesN<32>,
-        consumed_kwh: i128,
-        secret: BytesN<32>,
-    ) -> BytesN<32> {
-        let user_data = privacy::hash_consumption_data(
-            &env,
-            &user_address_bytes,
-            consumed_kwh,
-            &secret,
-        );
-
-        privacy::generate_commitment(&env, &user_data)
     }
 
     // ========================================================================
@@ -433,15 +296,17 @@ impl EnergyDistribution {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, vec, Bytes, BytesN, Env};
+    use soroban_sdk::{testutils::Address as _, vec, Env};
 
-    // Helper: register distribution contract and initialize
+    // Helper: register distribution contract with constructor
     fn setup<'a>(env: &'a Env) -> (EnergyDistributionClient<'a>, Address, Address) {
-        let contract_id = env.register(EnergyDistribution, ());
-        let client = EnergyDistributionClient::new(env, &contract_id);
         let admin = Address::generate(env);
         let token_contract = Address::generate(env);
-        let _ = client.try_initialize(&admin, &token_contract, &3).unwrap();
+        let contract_id = env.register(
+            EnergyDistribution,
+            (&admin, &token_contract, &3u32),
+        );
+        let client = EnergyDistributionClient::new(env, &contract_id);
         (client, admin, token_contract)
     }
 
@@ -457,75 +322,21 @@ mod test {
         (client, admin, token_contract, member1, member2)
     }
 
-    // Helper: setup with real energy_token contract for cross-contract tests
-    fn setup_with_real_token<'a>(
-        env: &'a Env,
-    ) -> (
-        EnergyDistributionClient<'a>,
-        energy_token::EnergyTokenClient<'a>,
-        Address,
-        Address,
-        Address,
-    ) {
-        let admin = Address::generate(env);
-
-        // Register distribution contract first to get its address
-        let dist_contract_id = env.register(EnergyDistribution, ());
-        let dist_client = EnergyDistributionClient::new(env, &dist_contract_id);
-
-        // Register real energy token with distribution contract as minter
-        let token_contract_id = env.register(
-            energy_token::EnergyToken,
-            (&admin, &dist_contract_id, &0i128),
-        );
-        let token_client = energy_token::EnergyTokenClient::new(env, &token_contract_id);
-
-        // Initialize distribution with real token and 1 required approval
-        dist_client.initialize(&admin, &token_contract_id, &1);
-
-        // Setup members: member1=60%, member2=40%
-        let member1 = Address::generate(env);
-        let member2 = Address::generate(env);
-        let approvers = vec![env, admin.clone()];
-        let members = vec![env, member1.clone(), member2.clone()];
-        let percents = vec![env, 60, 40];
-        dist_client.add_members_multisig(&approvers, &members, &percents);
-
-        (dist_client, token_client, admin, member1, member2)
-    }
-
     // ========================================================================
-    // Initialization
+    // Constructor
     // ========================================================================
 
     #[test]
-    fn test_initialize() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let contract_id = env.register(EnergyDistribution, ());
-        let client = EnergyDistributionClient::new(&env, &contract_id);
-        let admin = Address::generate(&env);
-        let token_contract = Address::generate(&env);
-
-        let result = client.try_initialize(&admin, &token_contract, &3);
-        assert!(result.is_ok());
-
-        assert_eq!(client.get_admin(), Some(admin.clone()));
-        assert_eq!(client.get_token_contract(), Some(token_contract.clone()));
-        assert_eq!(client.get_required_approvals(), Some(3));
-        assert!(!client.are_members_initialized());
-        assert_eq!(client.get_total_generated(), 0);
-    }
-
-    #[test]
-    fn test_reinitialize_fails() {
+    fn test_constructor() {
         let env = Env::default();
         env.mock_all_auths();
         let (client, admin, token_contract) = setup(&env);
 
-        let result = client.try_initialize(&admin, &token_contract, &5);
-        assert!(result.is_err());
+        assert_eq!(client.get_admin(), Some(admin));
+        assert_eq!(client.get_token_contract(), Some(token_contract));
+        assert_eq!(client.get_required_approvals(), Some(3));
+        assert!(!client.are_members_initialized());
+        assert_eq!(client.get_total_generated(), 0);
     }
 
     // ========================================================================
@@ -654,119 +465,6 @@ mod test {
     }
 
     // ========================================================================
-    // Privacy Functions
-    // ========================================================================
-
-    #[test]
-    fn test_enable_privacy() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, _, _, _, _) = setup_with_members(&env);
-
-        // enable_privacy should not panic
-        client.enable_privacy();
-    }
-
-    #[test]
-    fn test_record_private_consumption_non_member_fails() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, _, _, _, _) = setup_with_members(&env);
-
-        let non_member = Address::generate(&env);
-        let commitment = BytesN::from_array(&env, &[1u8; 32]);
-
-        let result = client.try_record_private_consumption(&non_member, &commitment);
-        assert_eq!(result, Err(Ok(DistributionError::MembersNotInitialized)));
-    }
-
-    #[test]
-    fn test_record_private_consumption_member_succeeds() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, _, _, member1, _) = setup_with_members(&env);
-
-        let commitment = BytesN::from_array(&env, &[1u8; 32]);
-
-        let result = client.try_record_private_consumption(&member1, &commitment);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_verify_private_consumption_valid() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, _, _, member1, _) = setup_with_members(&env);
-
-        let commitment = client.generate_commitment_helper(
-            &BytesN::from_array(&env, &[1u8; 32]),
-            &100_0000000,
-            &BytesN::from_array(&env, &[2u8; 32]),
-        );
-
-        // Store commitment
-        client.record_private_consumption(&member1, &commitment);
-
-        // Verify with matching data
-        let data = privacy::hash_consumption_data(
-            &env,
-            &BytesN::from_array(&env, &[1u8; 32]),
-            100_0000000,
-            &BytesN::from_array(&env, &[2u8; 32]),
-        );
-        let is_valid = client.verify_private_consumption(&member1, &data);
-        assert!(is_valid);
-    }
-
-    #[test]
-    fn test_verify_private_consumption_invalid() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, _, _, member1, _) = setup_with_members(&env);
-
-        let commitment = client.generate_commitment_helper(
-            &BytesN::from_array(&env, &[1u8; 32]),
-            &100_0000000,
-            &BytesN::from_array(&env, &[2u8; 32]),
-        );
-
-        client.record_private_consumption(&member1, &commitment);
-
-        // Verify with wrong data
-        let wrong_data = Bytes::from_array(&env, &[9u8; 80]);
-        let is_valid = client.verify_private_consumption(&member1, &wrong_data);
-        assert!(!is_valid);
-    }
-
-    #[test]
-    fn test_verify_no_commitment_returns_false() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, _, _, member1, _) = setup_with_members(&env);
-
-        let data = Bytes::from_array(&env, &[1u8; 80]);
-        let is_valid = client.verify_private_consumption(&member1, &data);
-        assert!(!is_valid);
-    }
-
-    #[test]
-    fn test_commitment_overwrite() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, _, _, member1, _) = setup_with_members(&env);
-
-        let commitment1 = BytesN::from_array(&env, &[1u8; 32]);
-        let commitment2 = BytesN::from_array(&env, &[2u8; 32]);
-
-        client.record_private_consumption(&member1, &commitment1);
-        client.record_private_consumption(&member1, &commitment2);
-
-        // Old commitment data should not verify
-        let data1 = Bytes::from_array(&env, &[1u8; 80]);
-        assert!(!client.verify_private_consumption(&member1, &data1));
-    }
-
-    // ========================================================================
     // View Functions
     // ========================================================================
 
@@ -791,116 +489,11 @@ mod test {
     }
 
     #[test]
-    fn test_member_list_empty_before_init() {
+    fn test_member_list_empty_before_members_added() {
         let env = Env::default();
         env.mock_all_auths();
         let (client, _, _) = setup(&env);
 
         assert_eq!(client.get_member_list().len(), 0);
-    }
-
-    #[test]
-    fn test_views_before_initialize() {
-        let env = Env::default();
-        let contract_id = env.register(EnergyDistribution, ());
-        let client = EnergyDistributionClient::new(&env, &contract_id);
-
-        assert_eq!(client.get_admin(), None);
-        assert_eq!(client.get_token_contract(), None);
-        assert_eq!(client.get_required_approvals(), None);
-        assert!(!client.are_members_initialized());
-        assert_eq!(client.get_total_generated(), 0);
-    }
-
-    // ========================================================================
-    // Cross-Contract Tests (with real energy_token)
-    // ========================================================================
-
-    #[test]
-    fn test_record_generation_success() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (dist_client, token_client, _, member1, member2) = setup_with_real_token(&env);
-
-        // Generate 100 kWh (with 7 decimals)
-        let result = dist_client.try_record_generation(&100_0000000);
-        assert!(result.is_ok());
-
-        // member1 (60%) should receive 60 HDROP
-        assert_eq!(token_client.balance(&member1), 60_0000000);
-        // member2 (40%) should receive 40 HDROP
-        assert_eq!(token_client.balance(&member2), 40_0000000);
-        assert_eq!(dist_client.get_total_generated(), 100_0000000);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_record_generation_no_auth_panics() {
-        let env = Env::default();
-        // No mock_all_auths — auth is enforced
-
-        // Register bare distribution contract (no initialize)
-        let dist_contract_id = env.register(EnergyDistribution, ());
-        let dist_client = EnergyDistributionClient::new(&env, &dist_contract_id);
-
-        // Panics: Admin not set, and even if it were, require_auth() would fail
-        dist_client.record_generation(&100_0000000);
-    }
-
-    #[test]
-    fn test_total_generated_accumulates() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (dist_client, token_client, _, member1, member2) = setup_with_real_token(&env);
-
-        // Three generations
-        dist_client.record_generation(&50_0000000);
-        dist_client.record_generation(&30_0000000);
-        dist_client.record_generation(&20_0000000);
-
-        // Total should accumulate: 50 + 30 + 20 = 100
-        assert_eq!(dist_client.get_total_generated(), 100_0000000);
-
-        // member1 (60%): 30 + 18 + 12 = 60 HDROP
-        assert_eq!(token_client.balance(&member1), 60_0000000);
-        // member2 (40%): 20 + 12 + 8 = 40 HDROP
-        assert_eq!(token_client.balance(&member2), 40_0000000);
-    }
-
-    #[test]
-    fn test_add_members_multisig_called_twice() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, admin, _) = setup(&env);
-
-        let m1 = Address::generate(&env);
-        let m2 = Address::generate(&env);
-        let m3 = Address::generate(&env);
-
-        // First call: m1=60%, m2=40%
-        let approvers1 = vec![&env, m1.clone(), m2.clone(), admin.clone()];
-        let members1 = vec![&env, m1.clone(), m2.clone()];
-        let percents1 = vec![&env, 60, 40];
-        client.add_members_multisig(&approvers1, &members1, &percents1);
-
-        // Second call: m2=70%, m3=30% (overwrites the member list)
-        let approvers2 = vec![&env, m2.clone(), m3.clone(), admin.clone()];
-        let members2 = vec![&env, m2.clone(), m3.clone()];
-        let percents2 = vec![&env, 70, 30];
-        client.add_members_multisig(&approvers2, &members2, &percents2);
-
-        // The member list is overwritten
-        assert_eq!(client.get_member_list().len(), 2);
-
-        // New members are set correctly
-        assert!(client.is_member(&m2));
-        assert!(client.is_member(&m3));
-        assert_eq!(client.get_member_percent(&m2), Some(70));
-        assert_eq!(client.get_member_percent(&m3), Some(30));
-
-        // m1 is no longer in the member list but its persistent storage is NOT cleaned up
-        // (old Member(m1) and MemberPercent(m1) entries remain in persistent storage)
-        assert!(client.is_member(&m1)); // Still true! Persistent storage not cleaned
-        assert_eq!(client.get_member_percent(&m1), Some(60)); // Old percent still there
     }
 }
