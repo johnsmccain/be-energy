@@ -13,8 +13,8 @@
 └──────┬───────┘
        │ dato de lectura (kWh, timestamp, meter_id)
        │
-       │ Medidor inteligente envía lecturas vía API
-       │ Fase 2: medidor inteligente envía automáticamente vía API
+       │ Testnet: simulador de medidor envía lecturas vía API
+       │ Mainnet: medidor inteligente real envía automáticamente
        ▼
 ┌──────────────┐
 │  Cooperativa │  Admin con acceso al dashboard
@@ -67,7 +67,7 @@
 
 ---
 
-## Integración con medidores (Fase 2)
+## Integración con medidores
 
 La infraestructura de medición remota ya existe en Argentina. BeEnergy no instala hardware — se conecta a lo que la cooperativa ya tiene o va a tener (plazo regulatorio: diciembre 2028).
 
@@ -108,14 +108,17 @@ Opción B: Medidor bidireccional (vía sistema HES de la cooperativa)
                           POST /api/meters/readings
 ```
 
-### Qué cambia en BeEnergy para Fase 2
+### Qué cambia de Testnet a Mainnet
 
-| Componente | Fase 1 (hoy) | Fase 2 |
-|------------|-------------|--------|
-| Ingesta de datos | Smart meter mock envía datos vía API | Integración directa con HES/MDM e inversores |
+| Componente | Testnet (hoy) | Mainnet |
+|------------|--------------|---------|
+| Fuente de datos | Simulador de medidor (`smart-meter-mock.ts`) genera lecturas realistas vía API | Medidor real (HES/MDM) o inversor (Fronius/Huawei/SMA) envía datos reales |
 | Endpoint | `POST /api/meters/readings` (bulk) | Mismo endpoint, múltiples fuentes |
 | Validación | Admin revisa y aprueba | Auto-validación con reglas + revisión por excepción |
-| Frecuencia | Cada 15 min (mock) | Cada 15 min (medidor) o 1 min (inversor) |
+| Frecuencia | Cada 15 min (simulada) | Cada 15 min (medidor) o 1 min (inversor) |
+| Red | Stellar Testnet | Stellar Mainnet |
+
+> **No hay carga manual ni CSV.** Los datos siempre entran vía API, ya sea desde el simulador (testnet) o desde hardware real (mainnet).
 
 No se necesita hardware nuevo. La cooperativa ya tiene medidores bidireccionales (obligatorios para generación distribuida) y muchas ya tienen lectura remota.
 
