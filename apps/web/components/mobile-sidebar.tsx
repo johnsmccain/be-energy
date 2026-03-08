@@ -8,7 +8,7 @@ import { Home, History, LogOut, Leaf, Menu, Zap, Award, Building2, Shield } from
 import { Button } from "@/components/ui/button"
 import { useWallet } from "@/lib/wallet-context"
 import { cn } from "@/lib/utils"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
 export function MobileSidebar() {
   const pathname = usePathname()
@@ -69,6 +69,7 @@ export function MobileSidebar() {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
+        <SheetTitle className="sr-only">Menu</SheetTitle>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-border">
