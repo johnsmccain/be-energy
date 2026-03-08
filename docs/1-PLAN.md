@@ -1,21 +1,21 @@
 # 1. BeEnergy — Plan de Producto
 
-## Qué es
+## ¿Qué es?
 
-Infraestructura de certificación energética y dashboard de gestión para cooperativas eléctricas argentinas. Tokeniza la producción de energía renovable como proto-certificados verificables en Stellar, vendibles a compradores externos.
+Infraestructura de certificación de energía renovable on-chain y dashboard de gestión para cooperativas eléctricas argentinas. Tokeniza la producción de energía renovable como proto-certificados verificables en Stellar, vendibles a compradores externos.
 
-## Cómo gana plata BeEnergy
+## ¿Cómo gana plata BeEnergy?
 
 Dos fuentes de ingresos:
 
 1. **Suscripción SaaS** — por el dashboard de gestión cooperativa
-2. **Comisión sobre venta de certificados** — porcentaje sobre cada proto-certificado vendido a compradores externos
+2. **Comisión sobre venta de certificados** — X% (ej: 5-10%) sobre cada proto-certificado vendido a compradores externos. Pagado por la cooperativa o incluido en el precio de venta.
 
-| Plan | Incluye |
-|------|---------|
-| Starter | Hasta 50 miembros, dashboard básico, 1 admin |
-| Pro | Hasta 500 miembros, analytics, múltiples admins |
-| Enterprise | Ilimitado, API, integración con medidores, soporte dedicado |
+| Plan | Precio orientativo | Incluye |
+|------|-------------------|---------|
+| Starter | $300-500 USD/mes | Hasta 50 miembros, dashboard básico, 1 admin |
+| Pro | $1,000-1,500 USD/mes | Hasta 500 miembros, analytics, múltiples admins |
+| Enterprise | Custom | Ilimitado, API, integración medidores, soporte dedicado |
 
 ---
 
@@ -58,7 +58,7 @@ Se retira el certificado (burn) → Evita doble conteo
 
 ## Fase 2 — Medidores inteligentes + multi-cooperativa
 
-**Objetivo:** Ingesta automática de datos. Cualquier cooperativa se suma.
+**Objetivo:** Múltiples cooperativas operan independientemente con BeEnergy. Cada cooperativa gestiona sus propios miembros y certificados (intra-cooperativa). Ingesta automática de medidores.
 
 **Contratos nuevos:**
 - `cooperative_factory` — Despliega token + distribution + governance en 1 tx
@@ -103,3 +103,11 @@ Se retira el certificado (burn) → Evita doble conteo
 - **Fase 1-3:** Legal bajo Ley 27.424 (intra-cooperativa). El token es un proto-certificado operativo, no un activo especulativo
 - **Fase 4:** Requiere consulta legal (Decreto 450/25 abre camino)
 - **PSAV:** No aplica en Fase 1-3
+
+---
+
+**Timeline estimado:**
+Si regulador aprueba: +2-3 meses desarrollo
+Si requiere autorización formal: +6-12 meses
+
+---
