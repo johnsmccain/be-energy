@@ -36,11 +36,11 @@ El token representa el **atributo ambiental** de la generación — no la electr
 
 La cooperativa o comunidad solar genera energía renovable. La producción se mide con medidores.
 
-**En Fase 1 (piloto):**
-- Datos reales: Cooperativa exporta lecturas de sus medidores (CSV o API si disponible)
-- Testing/demos: Smart meter mock incluido que simula curva solar realista
-- Carga manual o automática según infraestructura de la cooperativa
-**En Fase 2:**
+**Testnet (hoy):**
+- Simulador de medidor (`smart-meter-mock.ts`) genera lecturas realistas vía API
+- No hay carga manual ni CSV — los datos siempre entran vía API
+
+**Mainnet:**
 - Integración directa con sistemas de medición (HES/MDM)
 - Integración con inversores solares (Fronius, Huawei, SMA)
 - Ingesta automática continua
